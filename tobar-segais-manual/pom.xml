@@ -20,7 +20,7 @@
   <parent>
     <groupId>org.tobarsegais</groupId>
     <artifactId>tobarsegais-parent</artifactId>
-    <version>1.3-SNAPSHOT</version>
+    <version>1.16-SNAPSHOT</version>
   </parent>
 
   <artifactId>tobar-segais-manual</artifactId>
@@ -99,6 +99,7 @@
           <targetDirectory>${project.build.directory}/docbook</targetDirectory>
           <xincludeSupported>true</xincludeSupported>
           <includes>book-manual.xml</includes>
+          <useIdAsFilename>1</useIdAsFilename>
         </configuration>
         <executions>
           <execution>

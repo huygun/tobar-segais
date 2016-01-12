@@ -1,3 +1,19 @@
+/*
+ * Copyright 2011-2015 Stephen Connolly
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.tobarsegais.webapp;
 
 import javax.servlet.ServletContext;
@@ -6,6 +22,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.lang3.StringUtils;
 import org.tobarsegais.webapp.data.Toc;
 import org.tobarsegais.webapp.data.TocEntry;
 
@@ -14,8 +31,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 /**
- * @author stephenc
- * @since 25/07/2012 11:34
+ * The main application servlet.
  */
 public class DocsServlet extends HttpServlet {
 
@@ -42,10 +58,51 @@ public class DocsServlet extends HttpServlet {
         if( isTopic ){
         	path = findTopicPath(topicKey);
         }
-        
-        if (path.equals("/docs")) {
-            resp.sendRedirect("/docs/");
-            return;
+
+        String defaultPath = ServletContextListenerImpl.getInitParameter(getServletContext(), "default.page.path");
+        if (StringUtils.isNotBlank(defaultPath)) {
+            if (path.equals("/docs")) {
+                resp.sendRedirect(defaultPath.startsWith("/") ? "docs" + defaultPath : "docs/" + defaultPath);
+                return;
+            }
+            if (path.equals("/") ) {
+                resp.sendRedirect(defaultPath.startsWith("/") ? defaultPath.substring(1) : defaultPath);
+                return;
+            }
+        } else {
+            if (path.equals("/docs")) {
+                resp.sendRedirect("/docs/");
+                return;
+            }
+        }
+
+        if (!isTopic) {
+            Map<String, String> redirects = (Map<String, String>) getServletContext().getAttribute("redirects");
+            Map<String, String> aliases = (Map<String, String>) getServletContext().getAttribute("aliases");
+            for (index = path.indexOf('/'); index != -1; index = path.indexOf('/', index + 1)) {
+                String key = path.substring(0, index);
+                if (key.startsWith("/")) {
+                    key = key.substring(1);
+                }
+                if (redirects.containsKey(key)) {
+                    resp.setStatus(HttpServletResponse.SC_MOVED_PERMANENTLY);
+                    final String permanentKey =
+                            StringUtils.removeEnd(StringUtils.removeStart(redirects.get(key), "/"), "/");
+                    resp.setHeader("Location",
+                            req.getContextPath() + req.getServletPath() + "/" + permanentKey + path.substring(index));
+                    resp.flushBuffer();
+                    return;
+                }
+                if (aliases.containsKey(key)) {
+                    resp.setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
+                    final String temporaryKey =
+                            StringUtils.removeEnd(StringUtils.removeStart(aliases.get(key), "/"), "/");
+                    resp.setHeader("Location",
+                            req.getContextPath() + req.getServletPath() + "/" + temporaryKey + path.substring(index));
+                    resp.flushBuffer();
+                    return;
+                }
+            }
         }
 
         int endOfFileName = path.indexOf('#');

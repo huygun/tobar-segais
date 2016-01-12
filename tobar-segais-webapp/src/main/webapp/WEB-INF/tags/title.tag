@@ -14,6 +14,7 @@
   ~ limitations under the License.
   --%>
 
+<%@ tag trimDirectiveWhitespaces="true" %>
 <%@ tag import="java.util.Map" %>
 <%@ tag import="org.tobarsegais.webapp.data.Toc" %>
 <%@ tag import="org.tobarsegais.webapp.ServletContextListenerImpl" %>
@@ -34,7 +35,7 @@
                 }
             }
             if (pageTitle == null) {
-                pageTitle = application.getInitParameter("default.page.title");
+                pageTitle = ServletContextListenerImpl.getInitParameter(application, "default.page.title");
             }
             if (pageTitle == null) {
                 pageTitle = "Help";

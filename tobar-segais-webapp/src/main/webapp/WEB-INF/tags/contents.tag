@@ -1,4 +1,3 @@
-<%@ attribute name="id" required="true" %>
 <%--
 ~ Copyright 2012 Stephen Connolly
 ~
@@ -15,6 +14,8 @@
 ~ limitations under the License.
 --%>
 
+<%@ attribute name="id" required="true" %>
+<%@ tag trimDirectiveWhitespaces="true" %>
 <%@ tag import="org.apache.commons.io.IOUtils" %>
 <%@ tag import="org.jsoup.Jsoup" %>
 <%@ tag import="org.jsoup.nodes.Document" %>

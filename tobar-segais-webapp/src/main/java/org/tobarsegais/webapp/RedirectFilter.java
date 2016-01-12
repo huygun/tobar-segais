@@ -21,6 +21,7 @@ import org.apache.commons.lang3.StringUtils;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
+import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -31,10 +32,32 @@ import java.io.IOException;
 public class RedirectFilter implements Filter {
 
     private String domain = null;
+    private int status = HttpServletResponse.SC_MOVED_TEMPORARILY;
 
     public void init(FilterConfig filterConfig) throws ServletException {
-        domain =
-                filterConfig.getServletContext().getInitParameter(RedirectFilter.class.getName() + ".domain");
+        final ServletContext ctx = filterConfig.getServletContext();
+        domain = ServletContextListenerImpl.getInitParameter(ctx, RedirectFilter.class.getName() + ".domain");
+        String statusStr = ServletContextListenerImpl.getInitParameter(ctx, RedirectFilter.class.getName() + ".status");
+        if (StringUtils.isNotBlank(statusStr)) {
+            try {
+                switch (Integer.parseInt(statusStr)) {
+                    case 301:
+                        status = 301;
+                        break;
+                    case 307:
+                        status = 307;
+                        break;
+                    case 308:
+                        status = 308;
+                        break;
+                    default:
+                        status = 302;
+                        break;
+                }
+            } catch (NumberFormatException e) {
+                // ignore
+            }
+        }
     }
 
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -55,7 +78,7 @@ public class RedirectFilter implements Filter {
                 if (queryString != null) {
                     requestURL.append('?').append(queryString);
                 }
-                resp.setStatus(HttpServletResponse.SC_MOVED_PERMANENTLY);
+                resp.setStatus(status);
                 resp.setHeader("Location", requestURL.toString());
             }
         }

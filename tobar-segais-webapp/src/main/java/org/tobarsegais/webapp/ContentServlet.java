@@ -17,7 +17,9 @@
 package org.tobarsegais.webapp;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 
+import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -49,16 +51,39 @@ public class ContentServlet extends HttpServlet {
         if (index != -1) {
             path = path.substring(index + PLUGINS_ROOT.length() - 1);
         }
-        Map<String, String> bundles = (Map<String, String>) getServletContext().getAttribute("bundles");
+        ServletContext ctx = getServletContext();
+        Map<String, String> bundles = (Map<String, String>) ctx.getAttribute("bundles");
+        Map<String, String> redirects = (Map<String, String>) ctx.getAttribute("redirects");
+        Map<String, String> aliases = (Map<String, String>) ctx.getAttribute("aliases");
         for (index = path.indexOf('/'); index != -1; index = path.indexOf('/', index + 1)) {
+            if (index == 0) {
+                // there is no bundle with an empty name
+                continue;
+            }
             String key = path.substring(0, index);
             if (key.startsWith("/")) {
                 key = key.substring(1);
             }
+            if (redirects.containsKey(key)) {
+                resp.setStatus(HttpServletResponse.SC_MOVED_PERMANENTLY);
+                final String permanentKey = StringUtils.removeEnd(StringUtils.removeStart(redirects.get(key), "/"), "/");
+                resp.setHeader("Location",
+                        req.getContextPath() + req.getServletPath() + "/" + permanentKey + path.substring(index));
+                resp.flushBuffer();
+                return;
+            }
+            if (aliases.containsKey(key)) {
+                resp.setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
+                final String temporaryKey = StringUtils.removeEnd(StringUtils.removeStart(aliases.get(key), "/"),"/");
+                resp.setHeader("Location",
+                        req.getContextPath() + req.getServletPath() + "/" + temporaryKey + path.substring(index));
+                resp.flushBuffer();
+                return;
+            }
             if (bundles.containsKey(key)) {
                 key = bundles.get(key);
             }
-            URL resource = getServletContext().getResource(ServletContextListenerImpl.BUNDLE_PATH + "/" + key + ".jar");
+            URL resource = ctx.getResource(ServletContextListenerImpl.BUNDLE_PATH + "/" + key + ".jar");
             if (resource == null) {
                 continue;
             }
@@ -81,7 +106,21 @@ public class ContentServlet extends HttpServlet {
                 if (size > 0 && size < Integer.MAX_VALUE) {
                     resp.setContentLength((int) size);
                 }
-                resp.setContentType(getServletContext().getMimeType(fileName));
+                String mimeType = ctx.getMimeType(fileName);
+                resp.setContentType(mimeType);
+                String cacheControl = ServletContextListenerImpl.getInitParameter(ctx, "cache-control.mime." + mimeType);
+                if (cacheControl == null) {
+                    int slash = mimeType.indexOf('/');
+                    if (slash != -1) {
+                        cacheControl = ServletContextListenerImpl.getInitParameter(ctx, "cache-control.mime." + mimeType.substring(0, slash) + "/*");
+                    }
+                }
+                if (cacheControl == null) {
+                    cacheControl = ServletContextListenerImpl.getInitParameter(ctx, "cache-control.default");
+                }
+                if (StringUtils.isNotBlank(cacheControl)) {
+                    resp.setHeader("Cache-Control", cacheControl);
+                }
                 InputStream in = null;
                 OutputStream out = resp.getOutputStream();
                 try {

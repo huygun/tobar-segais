@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+String.prototype.endsWith = function(str) { // http://stackoverflow.com/questions/280634/endswith-in-javascript
+    var lastIndex = this.lastIndexOf(str);
+    return lastIndex != -1 && lastIndex + str.length == this.length;
+};
 var TobairSegais = {
     toRawUri:function (uri) {
         var i = uri.indexOf('#');
@@ -35,6 +39,29 @@ var TobairSegais = {
             $(this).click(TobairSegais.clickSupport);
         });
     },
+    scroll:function (url) {
+        // scroll content
+        var i = url.indexOf('#');
+        if (i != -1) {
+            window.location.hash = url.substring(i);
+            // XXX clumsy but cannot get $('[name="ElementNameHere"]') to work
+            // note: does not work for generated IDs like d0e4161 after redeploy unless you force a browser refresh
+            var nl = document.getElementsByName(url.substring(i + 1));
+            for (var j = 0; j < nl.length; j++) {
+                nl.item(j).scrollIntoView();
+            }
+        } else {
+            $('#content').each(function (i, e) {
+                e.scrollIntoView();
+            });
+        }
+        // scroll index
+        var nl = $('a').filter(function() {return this.href.endsWith(url)});
+        if (nl.length > 0) {
+            // XXX better to do this only if not already visible
+            nl[0].scrollIntoView();
+        }
+    },
     loadContent:function (url) {
         if (/^https?:\/\//.test(url)) {
             return true;
@@ -48,7 +75,9 @@ var TobairSegais = {
             history.pushState({url:url}, "", url);
             $('#content').load(TobairSegais.toRawUri(url), function () {
                 TobairSegais.addClickSupport("#content");
-                
+                history.pushState({url:url}, "", url);
+                var i = url.indexOf('#');
+                TobairSegais.scroll(url);
                 document.title = $("#contents-nav a[href='"+(i == -1 ? url : url.substring(0,i))+"']").text();
             });
             return false;
@@ -81,6 +110,7 @@ window.onpopstate = function (event) {
     if (event != null && event.state != null) {
         $('#content').load(TobairSegais.toRawUri(event.state.url), function () {
             TobairSegais.addClickSupport("#content");
+            TobairSegais.scroll(event.state.url);
         });
     }
 };
@@ -92,16 +122,9 @@ $(function () {
 });
 
 $(document).ready(function(){
-    
-            $("#toc").treeview({
+    $("#toc").treeview({
 		animated: "fast",
 		collapsed: true,
-		//unique: true,
-                //prerendered: true,
-		//persist: "cookie",
-		toggle: function() {
-			window.console && console.log("%o was toggled", this);
-		}
-            });
-    
+                persist: "location"
+    });    
 })
